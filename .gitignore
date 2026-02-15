@@ -1,0 +1,19 @@
+# Python
+.venv
+__pycache__/
+*.pyc
+
+# Environment
+.env
+
+# Docker
+*.log
+
+# Upload storage
+uploads/
+
+# Mac
+.DS_Store
+
+# Alembic cache
+alembic/versions/__pycache__
