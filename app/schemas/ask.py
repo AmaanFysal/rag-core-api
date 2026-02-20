@@ -10,4 +10,13 @@ class AskRequest(BaseModel):
 
 class AskResponse(BaseModel):
     answer: str
-    sources: List[int]  # chunk IDs used
+
+    class Source(BaseModel):
+        citation: int
+        chunk_id: int
+        document_id: int
+        filename: str
+        chunk_index: int
+        excerpt: str
+
+    sources: List[Source]

@@ -15,13 +15,14 @@ class RetrievalService:
         query: str,
         owner_id: str,
         top_k: int = 5
-    ) -> List[Tuple[Chunk, float]]:
+    ) -> List[Tuple[Chunk, str, float]]:
 
         query_embedding = await embed_text(query)
 
         stmt = (
             select(
                 Chunk,
+                Document.filename,
                 Chunk.embedding.cosine_distance(query_embedding).label("distance")
             )
             .join(Document, Chunk.document_id == Document.id)

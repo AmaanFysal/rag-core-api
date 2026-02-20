@@ -26,7 +26,7 @@ class ProcessingService:
                 raise ValueError("storage_path is null; file not stored")
 
             text = extract_text(doc.storage_path, doc.file_type)
-            chunks = chunk_text_by_tokens(text, chunk_size_tokens=chunk_size_tokens or settings.CHUNK_SIZE_TOKENS, overlap_tokens=overlap_tokens or settings.OVERLAP_TOKENS)
+            chunks = chunk_text_by_tokens(text, chunk_size_tokens=chunk_size_tokens or settings.CHUNK_SIZE_TOKENS, overlap_tokens=overlap_tokens or settings.CHUNK_OVERLAP_TOKENS)
 
             await self.db.execute(delete(Chunk).where(Chunk.document_id == doc.id))
 

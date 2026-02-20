@@ -9,6 +9,8 @@ async def generate_answer(question: str, context: str) -> str:
     system_prompt = """
 You are an AI assistant.
 Answer ONLY using the provided context.
+Every factual claim must include citation markers like [1], [2] that map to the numbered context blocks.
+Do not invent citations.
 If the answer is not in the context, say:
 "I cannot find this information in the uploaded documents."
 """

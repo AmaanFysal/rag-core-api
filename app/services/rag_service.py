@@ -1,4 +1,4 @@
-from typing import List
+import re
 from app.services.retrieval_service import RetrievalService
 from app.utils.llm import generate_answer
 
@@ -22,11 +22,20 @@ class RAGService:
             }
 
         context_blocks = []
-        source_ids = []
+        sources_by_citation = {}
 
-        for chunk, _distance in results:
-            context_blocks.append(chunk.content)
-            source_ids.append(chunk.id)
+        for i, (chunk, filename, _distance) in enumerate(results, start=1):
+            context_blocks.append(
+                f"[{i}] (chunk_id={chunk.id}, document_id={chunk.document_id}, filename={filename}, chunk_index={chunk.chunk_index})\n{chunk.content}"
+            )
+            sources_by_citation[i] = {
+                "citation": i,
+                "chunk_id": chunk.id,
+                "document_id": chunk.document_id,
+                "filename": filename,
+                "chunk_index": chunk.chunk_index,
+                "excerpt": chunk.content[:240]
+            }
 
         context = "\n\n".join(context_blocks)
 
@@ -35,7 +44,22 @@ class RAGService:
             context=context
         )
 
+        cited_numbers = set()
+        for value in re.findall(r"\[(\d+)\]", answer):
+            citation = int(value)
+            if citation in sources_by_citation:
+                cited_numbers.add(citation)
+
+        if not cited_numbers:
+            # Fallback: expose retrieved chunks if model missed citations.
+            cited_numbers = set(sources_by_citation.keys())
+
+        sources = [
+            sources_by_citation[citation]
+            for citation in sorted(cited_numbers)
+        ]
+
         return {
             "answer": answer,
-            "sources": source_ids
+            "sources": sources
         }
