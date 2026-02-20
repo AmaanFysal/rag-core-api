@@ -4,7 +4,6 @@ from typing import List
 
 class AskRequest(BaseModel):
     question: str = Field(..., min_length=1)
-    owner_id: str
     top_k: int = Field(default=5, ge=1, le=20)
 
 

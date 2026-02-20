@@ -1,6 +1,8 @@
-from fastapi import APIRouter, Depends, UploadFile, File, Form
+from fastapi import APIRouter, Depends, Request, UploadFile, File
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.dependencies import get_current_user
+from app.core.limiter import limiter
 from app.db.session import get_db
 from app.services.document_service import DocumentService
 from app.services.processing_service import ProcessingService
@@ -10,9 +12,11 @@ router = APIRouter(prefix="/documents", tags=["documents"])
 
 
 @router.post("/upload")
+@limiter.limit("10/minute")
 async def upload_document(
+    request: Request,
     file: UploadFile = File(...),
-    owner_id: str = Form(...),
+    owner_id: str = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     document_service = DocumentService(db)
