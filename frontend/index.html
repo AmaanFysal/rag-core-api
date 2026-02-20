@@ -1,0 +1,635 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>RAG Knowledge Assistant</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #0c0c0e;
+      --surface:   #141416;
+      --surface-2: #1c1c1f;
+      --border:    #2a2a2e;
+      --border-hi: #3a3a3f;
+      --accent:    #00e87a;
+      --text:      #e4e4e7;
+      --muted:     #52525b;
+      --error:     #f87171;
+      --font:      'SF Mono','JetBrains Mono','Fira Code',Menlo,monospace;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font);
+      font-size: 13px;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 32px 16px;
+    }
+
+    /* ── Window ── */
+    .window {
+      width: 100%;
+      max-width: 800px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+
+    /* ── Title bar ── */
+    .titlebar {
+      display: flex;
+      align-items: center;
+      padding: 13px 18px;
+      background: var(--surface-2);
+      border-bottom: 1px solid var(--border);
+      user-select: none;
+    }
+    .dots { display: flex; gap: 7px; }
+    .dot  { width: 12px; height: 12px; border-radius: 50%; }
+    .dot-r { background: #ff5f57; }
+    .dot-y { background: #febc2e; }
+    .dot-g { background: #28c840; }
+    .titlebar-title { flex: 1; text-align: center; font-size: 11px; color: var(--muted); letter-spacing: .06em; }
+    .titlebar-spacer { width: 52px; }
+
+    /* ── Content ── */
+    .content { padding: 24px; display: flex; flex-direction: column; gap: 20px; }
+
+    /* ── Auth bar ── */
+    .auth-bar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 13px;
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      font-size: 11px;
+    }
+    .status-dot {
+      width: 7px; height: 7px; border-radius: 50%;
+      background: var(--muted); flex-shrink: 0;
+      transition: background .3s;
+    }
+    .status-dot.on { background: var(--accent); }
+    .auth-label { flex: 1; color: var(--muted); }
+    .auth-label b { color: var(--text); font-weight: normal; }
+    #authMsg { font-size: 11px; color: var(--muted); }
+
+    .btn {
+      padding: 5px 13px;
+      background: transparent;
+      border: 1px solid var(--border-hi);
+      color: var(--text);
+      border-radius: 5px;
+      font-family: var(--font);
+      font-size: 11px;
+      cursor: pointer;
+      letter-spacing: .04em;
+      transition: border-color .15s, color .15s;
+    }
+    .btn:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+    .btn.accent { border-color: var(--accent); color: var(--accent); }
+    .btn:disabled { opacity: .35; cursor: default; }
+
+    /* ── Doc icons row ── */
+    .docs-row {
+      display: flex;
+      justify-content: center;
+      gap: 32px;
+      padding: 4px 0;
+    }
+
+    .doc-icon {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+      opacity: .3;
+    }
+    .doc-icon.ready { opacity: 1; }
+    .doc-icon.selected { opacity: .4; }
+
+    .doc-card {
+      width: 90px;
+      height: 108px;
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      cursor: grab;
+      transition: border-color .15s;
+      position: relative;
+    }
+    .doc-icon.ready .doc-card:hover { border-color: var(--border-hi); }
+    .doc-icon.selected .doc-card     { cursor: default; }
+
+    .doc-card svg { color: var(--muted); }
+
+    /* small view button overlaid bottom-right */
+    .doc-view-btn {
+      position: absolute;
+      bottom: 6px;
+      right: 7px;
+      font-size: 9px;
+      letter-spacing: .06em;
+      color: var(--muted);
+      cursor: pointer;
+      text-transform: uppercase;
+      transition: color .15s;
+      padding: 2px;
+    }
+    .doc-icon.ready .doc-view-btn:hover { color: var(--accent); }
+
+    .doc-meta { display: flex; flex-direction: column; align-items: center; gap: 3px; }
+    .doc-tag  { font-size: 9px; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+    .doc-name {
+      font-size: 10px; color: var(--muted);
+      max-width: 100px; text-align: center;
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    .doc-icon.ready .doc-name { color: var(--text); }
+
+    /* ── Drop zone ── */
+    .drop-zone {
+      border: 1px dashed var(--border-hi);
+      border-radius: 8px;
+      min-height: 110px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 16px 20px;
+      transition: border-color .15s, background .15s;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+    .drop-zone.over { border-color: var(--accent); background: rgba(0,232,122,.04); }
+
+    .drop-hint {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+      pointer-events: none;
+    }
+    .drop-hint svg { color: var(--muted); }
+    .drop-hint span { font-size: 11px; color: var(--muted); letter-spacing: .04em; }
+
+    .doc-chip {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 10px 6px 8px;
+      background: var(--surface-2);
+      border: 1px solid var(--accent);
+      border-radius: 5px;
+      font-size: 11px;
+      color: var(--accent);
+    }
+    .chip-name { color: var(--text); max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .chip-remove { cursor: pointer; color: var(--muted); font-size: 12px; line-height: 1; transition: color .15s; }
+    .chip-remove:hover { color: var(--error); }
+
+    hr { border: none; border-top: 1px solid var(--border); }
+
+    /* ── Q&A ── */
+    .qa { display: flex; flex-direction: column; gap: 12px; }
+    .input-row { display: flex; align-items: center; gap: 9px; }
+    .prompt { color: var(--accent); font-size: 14px; flex-shrink: 0; }
+    .q-input {
+      flex: 1;
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 9px 12px;
+      color: var(--text);
+      font-family: var(--font);
+      font-size: 13px;
+      outline: none;
+      transition: border-color .15s;
+    }
+    .q-input:focus { border-color: var(--accent); }
+    .q-input::placeholder { color: var(--muted); }
+    .q-input:disabled { opacity: .35; }
+
+    /* ── Answer ── */
+    .answer {
+      display: none; flex-direction: column; gap: 12px;
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 16px;
+    }
+    .answer.show { display: flex; }
+    .ans-hdr  { font-size: 9px; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); }
+    .ans-text { line-height: 1.75; font-size: 13px; white-space: pre-wrap; }
+    .sources  { display: flex; flex-direction: column; gap: 7px; }
+    .src      { border-left: 2px solid var(--border-hi); padding: 7px 12px; display: flex; flex-direction: column; gap: 3px; }
+    .src-cite    { font-size: 9px; color: var(--accent); letter-spacing: .06em; }
+    .src-file    { font-size: 10px; color: var(--muted); }
+    .src-excerpt { font-size: 11px; color: var(--text); opacity: .65; font-style: italic; }
+    .err-msg     { color: var(--error); font-size: 12px; }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .spin {
+      display: inline-block; width: 14px; height: 14px;
+      border: 1.5px solid var(--border-hi); border-top-color: var(--accent);
+      border-radius: 50%; animation: spin .65s linear infinite;
+    }
+
+    /* ── Footer ── */
+    .footer { text-align: center; font-size: 9px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+
+    /* ── Viewer modal ── */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,.7);
+      z-index: 100;
+      align-items: center;
+      justify-content: center;
+      padding: 32px 16px;
+    }
+    .modal-overlay.show { display: flex; }
+
+    .modal {
+      width: 100%;
+      max-width: 760px;
+      max-height: 80vh;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface-2);
+    }
+    .modal-title { font-size: 11px; color: var(--muted); letter-spacing: .04em; }
+    .modal-close {
+      font-size: 16px; color: var(--muted); cursor: pointer;
+      transition: color .15s; line-height: 1;
+    }
+    .modal-close:hover { color: var(--text); }
+
+    .modal-body {
+      flex: 1;
+      overflow-y: auto;
+      padding: 20px;
+    }
+    .modal-body pre {
+      font-family: var(--font);
+      font-size: 12px;
+      color: var(--text);
+      line-height: 1.7;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+    .modal-loading { color: var(--muted); font-size: 12px; display: flex; align-items: center; gap: 10px; }
+  </style>
+</head>
+<body>
+
+<div class="window">
+  <div class="titlebar">
+    <div class="dots">
+      <div class="dot dot-r"></div>
+      <div class="dot dot-y"></div>
+      <div class="dot dot-g"></div>
+    </div>
+    <div class="titlebar-title">rag-knowledge-assistant</div>
+    <div class="titlebar-spacer"></div>
+  </div>
+
+  <div class="content">
+
+    <!-- Auth -->
+    <div class="auth-bar">
+      <div class="status-dot" id="dot"></div>
+      <div class="auth-label">demo &mdash; <b>alice</b> / <b>alice_password</b></div>
+      <span id="authMsg">not connected</span>
+      <button class="btn accent" id="connectBtn" onclick="connect()">connect</button>
+    </div>
+
+    <!-- Doc icons -->
+    <div class="docs-row" id="docsRow">
+      <span style="color:var(--muted);font-size:11px;letter-spacing:.04em;">connect to load documents</span>
+    </div>
+
+    <!-- Drop zone -->
+    <div
+      class="drop-zone"
+      id="dropZone"
+      ondragover="onOver(event)"
+      ondragleave="onLeave(event)"
+      ondrop="onDrop(event)"
+    >
+      <div class="drop-hint" id="dropHint">
+        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66L9.41 17.41A2 2 0 016.59 14.59l8.49-8.48"/>
+        </svg>
+        <span>drag documents here to query</span>
+      </div>
+    </div>
+
+    <hr />
+
+    <!-- Q&A -->
+    <div class="qa">
+      <div class="input-row">
+        <span class="prompt">›</span>
+        <input
+          class="q-input" id="qInput" type="text"
+          placeholder="ask a question about the selected documents…"
+          disabled
+          onkeydown="if(event.key==='Enter') ask()"
+        />
+        <button class="btn" id="askBtn" onclick="ask()" disabled>ask</button>
+      </div>
+      <div class="answer" id="answerBox">
+        <div class="ans-hdr" id="ansHdr">answer</div>
+        <div class="ans-text" id="ansText"></div>
+        <div class="sources" id="srcs"></div>
+      </div>
+    </div>
+
+    <div class="footer">vector search &middot; retrieval-augmented generation &middot; jwt auth</div>
+
+  </div>
+</div>
+
+<!-- Viewer modal -->
+<div class="modal-overlay" id="viewerOverlay" onclick="closeViewer(event)">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title" id="viewerTitle">document</span>
+      <span class="modal-close" onclick="closeViewerDirect()">✕</span>
+    </div>
+    <div class="modal-body" id="viewerBody">
+      <div class="modal-loading"><div class="spin"></div> loading…</div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const API = 'http://localhost:8000';   // ← change when deploying
+
+  let token         = null;
+  let allDocs       = [];
+  let selectedIds   = new Set();
+  let draggingDocId = null;
+
+  // ── Auth ─────────────────────────────────────────────────────────────────────
+  async function connect() {
+    const btn = $('connectBtn'), dot = $('dot'), msg = $('authMsg');
+    btn.disabled = true; btn.textContent = 'connecting…';
+    try {
+      const r = await fetch(`${API}/auth/token`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: 'username=alice&password=alice_password',
+      });
+      if (!r.ok) throw new Error();
+      token = (await r.json()).access_token;
+      dot.classList.add('on');
+      msg.style.color = 'var(--accent)'; msg.textContent = 'connected';
+      btn.textContent = 'reconnect';
+      await loadDocs();
+    } catch {
+      msg.style.color = 'var(--error)'; msg.textContent = 'failed';
+      btn.textContent = 'retry';
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
+  // ── Load docs ────────────────────────────────────────────────────────────────
+  async function loadDocs() {
+    const r = await fetch(`${API}/documents/`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    allDocs = await r.json();
+    renderDocIcons();
+  }
+
+  // ── Render doc icons ──────────────────────────────────────────────────────────
+  function renderDocIcons() {
+    const row = $('docsRow');
+    if (!allDocs.length) {
+      row.innerHTML = '<span style="color:var(--muted);font-size:11px;">no documents found</span>';
+      return;
+    }
+
+    row.innerHTML = allDocs.map((doc, i) => {
+      const ready    = doc.status === 'ready';
+      const selected = selectedIds.has(doc.id);
+      const cls      = ready ? (selected ? 'selected' : '') : '';
+      const draggable = ready && !selected;
+
+      return `
+        <div
+          class="doc-icon ready ${cls}"
+          id="docicon-${doc.id}"
+          draggable="${draggable}"
+          ondragstart="startDrag(event,${doc.id})"
+          ondragend="endDrag(event,${doc.id})"
+          title="${esc(doc.filename)}"
+        >
+          <div class="doc-card">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/>
+              <polyline points="14 2 14 8 20 8"/>
+              <line x1="8" y1="13" x2="16" y2="13"/>
+              <line x1="8" y1="17" x2="13" y2="17"/>
+            </svg>
+            ${ready ? `<span class="doc-view-btn" onclick="viewDoc(event,${doc.id},'${esc(doc.filename)}')">view</span>` : ''}
+          </div>
+          <div class="doc-meta">
+            <span class="doc-tag">doc ${i + 1}</span>
+            <span class="doc-name">${trunc(doc.filename, 18)}</span>
+          </div>
+        </div>
+      `;
+    }).join('');
+  }
+
+  // ── Drag ─────────────────────────────────────────────────────────────────────
+  function startDrag(e, docId) {
+    draggingDocId = docId;
+    e.dataTransfer.effectAllowed = 'copy';
+    e.dataTransfer.setData('text/plain', String(docId));
+    setTimeout(() => {
+      const el = $(`docicon-${docId}`);
+      if (el) el.style.opacity = '.1';
+    }, 0);
+  }
+  function endDrag(e, docId) {
+    const el = $(`docicon-${docId}`);
+    if (el) el.style.opacity = '';
+    draggingDocId = null;
+  }
+
+  // ── Drop zone ─────────────────────────────────────────────────────────────────
+  function onOver(e)  { e.preventDefault(); $('dropZone').classList.add('over'); }
+  function onLeave(e) { $('dropZone').classList.remove('over'); }
+  function onDrop(e)  {
+    e.preventDefault();
+    $('dropZone').classList.remove('over');
+    const docId = parseInt(e.dataTransfer.getData('text/plain'), 10);
+    if (!docId || selectedIds.has(docId)) return;
+    selectedIds.add(docId);
+    renderDropZone();
+    renderDocIcons();
+    syncQA();
+  }
+
+  function removeDoc(docId) {
+    selectedIds.delete(docId);
+    renderDropZone();
+    renderDocIcons();
+    syncQA();
+    if (selectedIds.size === 0) {
+      $('answerBox').className = 'answer';
+    }
+  }
+
+  function renderDropZone() {
+    const zone = $('dropZone');
+    const hint = $('dropHint');
+    zone.querySelectorAll('.doc-chip').forEach(el => el.remove());
+
+    if (selectedIds.size === 0) {
+      zone.style.justifyContent = 'center';
+      hint.style.display = 'flex';
+      return;
+    }
+
+    hint.style.display = 'none';
+    zone.style.justifyContent = 'flex-start';
+
+    selectedIds.forEach(docId => {
+      const doc = allDocs.find(d => d.id === docId);
+      if (!doc) return;
+      const chip = document.createElement('div');
+      chip.className = 'doc-chip';
+      chip.innerHTML = `
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/>
+        </svg>
+        <span class="chip-name">${esc(doc.filename)}</span>
+        <span class="chip-remove" onclick="removeDoc(${docId})">✕</span>
+      `;
+      zone.appendChild(chip);
+    });
+  }
+
+  function syncQA() {
+    const enabled = selectedIds.size > 0;
+    $('qInput').disabled = !enabled;
+    $('askBtn').disabled = !enabled;
+    if (enabled) $('qInput').focus();
+  }
+
+  // ── Ask ──────────────────────────────────────────────────────────────────────
+  async function ask() {
+    const qInput = $('qInput'), askBtn = $('askBtn');
+    const box = $('answerBox'), hdr = $('ansHdr'), txt = $('ansText'), srcs = $('srcs');
+    const q = qInput.value.trim();
+    if (!q || !token) return;
+
+    askBtn.disabled = true; qInput.disabled = true;
+    box.className = 'answer show';
+    hdr.textContent = 'thinking…'; txt.textContent = ''; srcs.innerHTML = '';
+
+    try {
+      const r = await fetch(`${API}/ask/`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ question: q, top_k: 5, document_ids: [...selectedIds] }),
+      });
+      if (!r.ok) throw new Error((await r.json()).detail || r.statusText);
+      const data = await r.json();
+
+      hdr.textContent = 'answer';
+      txt.textContent = data.answer;
+
+      (data.sources || []).forEach(s => {
+        const d = document.createElement('div');
+        d.className = 'src';
+        d.innerHTML = `
+          <span class="src-cite">[${s.citation}] ${esc(s.filename)}</span>
+          <span class="src-file">chunk ${s.chunk_index}</span>
+          <span class="src-excerpt">"${esc(s.excerpt)}"</span>
+        `;
+        srcs.appendChild(d);
+      });
+    } catch (e) {
+      hdr.textContent = 'error';
+      txt.innerHTML = `<span class="err-msg">${esc(e.message)}</span>`;
+    } finally {
+      askBtn.disabled = false; qInput.disabled = false; qInput.focus();
+    }
+  }
+
+  // ── Viewer ───────────────────────────────────────────────────────────────────
+  async function viewDoc(e, docId, filename) {
+    e.stopPropagation(); // don't trigger drag
+    $('viewerTitle').textContent = filename;
+    $('viewerBody').innerHTML = '<div class="modal-loading"><div class="spin"></div> loading…</div>';
+    $('viewerOverlay').className = 'modal-overlay show';
+
+    try {
+      const r = await fetch(`${API}/documents/${docId}/content`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!r.ok) throw new Error(await r.text());
+      const text = await r.text();
+      const pre = document.createElement('pre');
+      pre.textContent = text;
+      $('viewerBody').innerHTML = '';
+      $('viewerBody').appendChild(pre);
+    } catch (e) {
+      $('viewerBody').innerHTML = `<span class="err-msg">${esc(e.message)}</span>`;
+    }
+  }
+
+  function closeViewer(e) {
+    if (e.target === $('viewerOverlay')) closeViewerDirect();
+  }
+  function closeViewerDirect() {
+    $('viewerOverlay').className = 'modal-overlay';
+    $('viewerBody').innerHTML = '';
+  }
+
+  // close modal on Escape
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') closeViewerDirect();
+  });
+
+  // ── Helpers ──────────────────────────────────────────────────────────────────
+  const $    = id => document.getElementById(id);
+  const esc  = s  => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  const trunc = (s, n) => s.length > n ? s.slice(0, n) + '…' : s;
+</script>
+
+</body>
+</html>

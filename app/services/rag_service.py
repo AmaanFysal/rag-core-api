@@ -7,12 +7,13 @@ class RAGService:
     def __init__(self, db):
         self.retrieval = RetrievalService(db)
 
-    async def ask(self, question: str, owner_id: str, top_k: int = 5):
+    async def ask(self, question: str, owner_id: str, top_k: int = 5, document_ids=None):
 
         results = await self.retrieval.search(
             query=question,
             owner_id=owner_id,
-            top_k=top_k
+            top_k=top_k,
+            document_ids=document_ids,
         )
 
         if not results:

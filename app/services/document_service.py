@@ -46,6 +46,15 @@ class DocumentService:
         result = await self.db.execute(stmt)
         return result.scalar_one_or_none()
 
+    async def list_by_owner(self, owner_id: str) -> list[Document]:
+        stmt = (
+            select(Document)
+            .where(Document.owner_id == owner_id)
+            .order_by(Document.uploaded_at)
+        )
+        result = await self.db.execute(stmt)
+        return list(result.scalars().all())
+
     async def save_file(self, doc: Document, original_filename: str, content: bytes) -> None:
         """
         Saves file to disk and updates storage_path.

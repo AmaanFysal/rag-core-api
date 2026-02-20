@@ -1,4 +1,7 @@
-from fastapi import APIRouter, Depends, Request, UploadFile, File
+from pathlib import Path
+
+from fastapi import APIRouter, Depends, HTTPException, Request, UploadFile, File
+from fastapi.responses import PlainTextResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.dependencies import get_current_user
@@ -9,6 +12,35 @@ from app.services.processing_service import ProcessingService
 from app.utils.file_storage import sha256_bytes
 
 router = APIRouter(prefix="/documents", tags=["documents"])
+
+
+@router.get("/")
+async def list_documents(
+    owner_id: str = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    service = DocumentService(db)
+    docs = await service.list_by_owner(owner_id)
+    return [{"id": d.id, "filename": d.filename, "status": d.status} for d in docs]
+
+
+@router.get("/{doc_id}/content", response_class=PlainTextResponse)
+async def get_document_content(
+    doc_id: int,
+    owner_id: str = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    service = DocumentService(db)
+    docs = await service.list_by_owner(owner_id)
+    doc = next((d for d in docs if d.id == doc_id), None)
+    if not doc:
+        raise HTTPException(status_code=404, detail="Document not found")
+    if not doc.storage_path:
+        raise HTTPException(status_code=404, detail="File not stored")
+    path = Path(doc.storage_path)
+    if not path.exists():
+        raise HTTPException(status_code=404, detail="File not found on disk")
+    return path.read_text(errors="replace")
 
 
 @router.post("/upload")

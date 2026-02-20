@@ -23,7 +23,8 @@ async def ask_question(
     result = await service.ask(
         question=payload.question,
         owner_id=owner_id,
-        top_k=payload.top_k
+        top_k=payload.top_k,
+        document_ids=payload.document_ids,
     )
 
     return result
