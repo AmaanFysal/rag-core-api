@@ -1,12 +1,9 @@
-import os
 from datetime import datetime
-from fastapi import UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
 
 from app.models.document import Document
-
-
-UPLOAD_DIR = "uploads"
+from app.utils.file_storage import build_storage_path, save_bytes
 
 
 class DocumentService:
@@ -18,6 +15,7 @@ class DocumentService:
         filename: str,
         file_type: str,
         owner_id: str,
+        content_hash: str | None = None,
     ) -> Document:
 
         doc = Document(
@@ -26,6 +24,7 @@ class DocumentService:
             uploaded_at=datetime.utcnow(),
             status="uploaded",
             owner_id=owner_id,
+            content_hash=content_hash,
         )
 
         self.db.add(doc)
@@ -34,21 +33,25 @@ class DocumentService:
 
         return doc
 
-    async def save_file(self, doc: Document, file: UploadFile) -> None:
+    async def get_by_owner_and_hash(self, owner_id: str, content_hash: str) -> Document | None:
+        stmt = (
+            select(Document)
+            .where(
+                Document.owner_id == owner_id,
+                Document.content_hash == content_hash
+            )
+            .order_by(Document.uploaded_at.desc())
+            .limit(1)
+        )
+        result = await self.db.execute(stmt)
+        return result.scalar_one_or_none()
+
+    async def save_file(self, doc: Document, original_filename: str, content: bytes) -> None:
         """
         Saves file to disk and updates storage_path.
         """
-
-        os.makedirs(UPLOAD_DIR, exist_ok=True)
-
-        storage_path = os.path.join(
-            UPLOAD_DIR,
-            f"{doc.id}_{file.filename}"
-        )
-
-        with open(storage_path, "wb") as f:
-            content = await file.read()
-            f.write(content)
+        storage_path = build_storage_path(doc.id, original_filename)
+        save_bytes(storage_path, content)
 
         doc.storage_path = storage_path
 
