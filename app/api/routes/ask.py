@@ -11,7 +11,7 @@ router = APIRouter(prefix="/ask", tags=["ask"])
 
 
 @router.post("/", response_model=AskResponse)
-@limiter.limit("30/minute")
+@limiter.limit("2/day")
 async def ask_question(
     request: Request,
     payload: AskRequest,
