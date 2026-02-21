@@ -1,3 +1,4 @@
+import os
 from logging.config import fileConfig
 
 from sqlalchemy import engine_from_config
@@ -12,6 +13,13 @@ from app.models.chunk import Chunk
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
 config = context.config
+
+# Allow DATABASE_URL env var to override alembic.ini (required for Railway)
+_db_url = os.environ.get("DATABASE_URL")
+if _db_url:
+    # Strip async driver prefix if present; alembic uses synchronous psycopg2
+    _db_url = _db_url.replace("postgresql+asyncpg://", "postgresql://")
+    config.set_main_option("sqlalchemy.url", _db_url)
 
 # Interpret the config file for Python logging.
 # This line sets up loggers basically.
