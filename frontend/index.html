@@ -377,7 +377,10 @@
         <button class="btn" id="askBtn" onclick="ask()" disabled>ask</button>
       </div>
       <div class="answer" id="answerBox">
-        <div class="ans-hdr" id="ansHdr">answer</div>
+        <div style="display:flex;align-items:center;justify-content:space-between;">
+          <div class="ans-hdr" id="ansHdr">answer</div>
+          <span onclick="clearAnswer()" style="font-size:10px;color:var(--muted);cursor:pointer;letter-spacing:.04em;transition:color .15s;" onmouseover="this.style.color='var(--text)'" onmouseout="this.style.color='var(--muted)'">↺ clear</span>
+        </div>
         <div class="ans-text" id="ansText"></div>
         <div class="sources" id="srcs"></div>
       </div>
@@ -643,6 +646,17 @@
   document.addEventListener('keydown', e => {
     if (e.key === 'Escape') closeViewerDirect();
   });
+
+  // ── Clear ────────────────────────────────────────────────────────────────────
+  function clearAnswer() {
+    $('answerBox').className = 'answer';
+    $('ansText').textContent = '';
+    $('srcs').innerHTML = '';
+    $('qInput').value = '';
+    $('qInput').disabled = selectedIds.size === 0;
+    $('askBtn').disabled = selectedIds.size === 0;
+    if (selectedIds.size > 0) $('qInput').focus();
+  }
 
   // ── Helpers ──────────────────────────────────────────────────────────────────
   const $    = id => document.getElementById(id);
