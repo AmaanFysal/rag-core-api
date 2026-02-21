@@ -5,7 +5,7 @@ Run once after clearing the database:
 """
 import httpx
 
-API = "http://localhost:8000"
+API = "https://rag-api-production-13c4.up.railway.app"
 FILES = [
     "/Users/amaanfysal/Desktop/1_The History and Future of Artificial Intelligence.txt",
     "/Users/amaanfysal/Desktop/2_UHIF_RAG_Test_Document.txt",
