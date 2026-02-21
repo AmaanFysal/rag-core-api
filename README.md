@@ -588,24 +588,6 @@ The drag-to-zone pattern was a deliberate UX choice: it makes document selection
 
 ---
 
-## What This Demonstrates
-
-If you're reading this as a hiring manager or technical reviewer:
-
-**Backend engineering:** Async FastAPI with proper separation of concerns across routes, services, and utilities. Not everything in one file.
-
-**Security thinking:** IDOR prevention via JWT-scoped identity. Rate limiting. Request size limits. Middleware layering. Multi-tenant isolation at the database query level.
-
-**AI/ML integration:** Embedding pipeline, vector storage, cosine similarity retrieval, context assembly, grounded LLM prompting, source citations.
-
-**Infra:** Railway deployment with managed Postgres, Alembic migrations baked into startup, Vercel static hosting. Not running on localhost and calling it deployed.
-
-**Testing:** Async integration tests with mocked services. Tests that verify security properties, not just happy paths.
-
-**Pragmatism:** Acknowledged the real tradeoffs — what works now vs. what breaks at scale — rather than pretending the system is perfect.
-
----
-
 ## Author
 
 Built by Amaan Fysal.
