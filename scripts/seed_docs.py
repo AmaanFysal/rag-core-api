@@ -6,9 +6,14 @@ Run once after clearing the database:
 import httpx
 
 API = "https://rag-api-production-13c4.up.railway.app"
+import os
+
+_HERE = os.path.dirname(os.path.abspath(__file__))
+_DEMO_DOCS = os.path.join(os.path.dirname(_HERE), "demo_docs")
+
 FILES = [
-    "/Users/amaanfysal/Desktop/1_The History and Future of Artificial Intelligence.txt",
-    "/Users/amaanfysal/Desktop/2_UHIF_RAG_Test_Document.txt",
+    os.path.join(_DEMO_DOCS, "1_The History and Future of Artificial Intelligence.txt"),
+    os.path.join(_DEMO_DOCS, "2_UHIF_RAG_Test_Document.txt"),
 ]
 
 
